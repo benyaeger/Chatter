@@ -55,9 +55,9 @@ class ChatterApp:
         self.chat_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
         # Example chat boxes (this should be dynamic in a real app)
-        tk.Label(self.chat_list_frame, text="Chat 1", bg="lightgrey").pack(pady=10)
-        tk.Label(self.chat_list_frame, text="Chat 2", bg="lightgrey").pack(pady=10)
-        tk.Label(self.chat_list_frame, text="Chat 3", bg="lightgrey").pack(pady=10)
+        tk.Button(self.chat_list_frame, text="Chat 1", bg="lightgrey").pack(pady=10)
+        tk.Button(self.chat_list_frame, text="Chat 2", bg="lightgrey").pack(pady=10)
+        tk.Button(self.chat_list_frame, text="Chat 3", bg="lightgrey").pack(pady=10)
 
         # Messages display area
         self.message_area = tk.Frame(self.chat_frame, bg="#d3f8d3")  # Pastel green background

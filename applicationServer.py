@@ -1,6 +1,6 @@
 from flask import request, redirect, url_for, Flask
 import psycopg2
-from psycopg2 import sql, errors
+from psycopg2 import errors
 from datetime import datetime
 
 # We create a Flask app object on our current file
@@ -10,8 +10,8 @@ app = Flask(__name__)
 conn = psycopg2.connect(
     dbname='postgres',
     user='postgres',
-    password='213746837',
-    host='localhost',
+    password='l17JkhOqKwjYofAu14Wt',
+    host='chatter-db-leader.cdkae2i48cd8.eu-north-1.rds.amazonaws.com',
     port='5432'
 )
 
