@@ -22,7 +22,7 @@ cur = conn.cursor()
 # We use the route() decorator to tell Flask what URL should trigger our function.
 @app.route('/')
 def index():
-    return redirect(url_for('get_all_users'))
+    return 'Hello World!'
 
 
 @app.route('/user')
