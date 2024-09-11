@@ -39,54 +39,20 @@ def get_user():
     return users
 
 
-@app.route('/users')
-def get_all_users():
-    cur.execute("SELECT * FROM users ORDER BY first_name")
-    users = cur.fetchall()
-    # If no users found
-    if len(users) == 0:
-        return 'No Users Found'
-    return users
-
-
-@app.route('/newchat', methods=["POST"])
-def new_chat():
-    # We get user id name from request parameters
-    owner_id = request.args.get('owner_id', '')
-
-    # Prepare the INSERT query
-    insert_query = """
-    INSERT INTO chats (chat_name, chat_created_at, chat_owner_id, chat_details_updated_at)
-    VALUES (%s, %s, %s, %s)
-    """
-
-    # Define the values for insertion
-    chat_name = "Test Chat"
-    chat_created_at = datetime.now()  # Or any specific timestamp
-    chat_owner_id = owner_id
-    chat_details_updated_at = datetime.now()  # This is optional; if not specified, it defaults to CURRENT_TIMESTAMP
-
-    # Execute the query with the provided values
-    cur.execute(insert_query, (chat_name, chat_created_at, chat_owner_id, chat_details_updated_at))
-
-    # Commit the changes to the database
-    conn.commit()
-    return 'Chat Created Successfully'
-
-
 @app.route('/add_user_to_chat', methods=["POST"])
-def add_user_to_chat():
-    # Get params from request
-    chat_id = request.args.get('chat_id', '')
-    added_user_id = request.args.get('added_user_id', '')
+def add_user_to_chat(chat_id=None, added_user_id=None):
+    if chat_id is None and added_user_id is None:
+        # Get params from request
+        chat_id = request.args.get('chat_id', '')
+        added_user_id = request.args.get('added_user_id', '')
 
     # Insert Query Init
-    insert_query = """
+    new_participant_insert_query = """
     INSERT INTO participants (chat_id, user_id) VALUES (%s, %s)
     """
     try:
         # Execute Insert Query
-        cur.execute(insert_query, (chat_id, added_user_id))
+        cur.execute(new_participant_insert_query, (chat_id, added_user_id))
         # Commit the changes to the database
         conn.commit()
         return f'User ID {added_user_id} added Successfully to Chat ID {chat_id}'
@@ -98,7 +64,59 @@ def add_user_to_chat():
     except Exception as e:
         # Handle other potential exceptions
         conn.rollback()
-        return f'An error occurred: {str(e)}', 500
+        return f'An Error occurred: {str(e)}', 500
+
+
+@app.route('/newchat', methods=["POST"])
+def new_chat():
+    # We get new chat parameters from request parameters
+    owner_id = request.args.get('owner_id', '')
+    chat_name = request.args.get('chat_name', '')
+
+    # Prepare the new chat INSERT query to the chats table
+    new_chat_insert_query = """
+    INSERT INTO chats (chat_name, chat_created_at, chat_owner_id, chat_details_updated_at)
+    VALUES (%s, %s, %s, %s) RETURNING chat_id
+    """
+
+    # These fields don't require the user's input
+    chat_created_at = datetime.now()  # Or any specific timestamp
+    chat_owner_id = owner_id
+    chat_details_updated_at = datetime.now()  # This is optional; if not specified, it defaults to CURRENT_TIMESTAMP
+
+    # Execute the query with the provided values
+    cur.execute(new_chat_insert_query, (chat_name, chat_created_at, chat_owner_id, chat_details_updated_at))
+
+    # Fetch the chat generated ID
+    new_chat_id = cur.fetchone()[0]
+
+    # Commit the changes to the database
+    conn.commit()
+
+    # We also need to add the owner as a chat participant
+    # We use previously implemented function
+    add_user_to_chat(new_chat_id, owner_id)
+    return 'Chat Created Successfully, Owner added to chat participants'
+
+
+@app.route('/get_chat_participants')
+def get_chat_participants():
+    # Get chat id
+    chat_id = request.args.get('chat_id', '')
+
+    cur.execute(f'SELECT * FROM participants JOIN users ON participants.user_id = users.user_id WHERE chat_id = {chat_id}')
+
+    chat_participants = cur.fetchall()
+
+    if chat_participants is not None:
+        return chat_participants
+    return 'No Chat Participants Found'
+
+
+@app.route('/remove_user_from_chat', methods=["PUT"])
+def remove_user_from_chat():
+    # TODO implement this function
+    return None
 
 
 @app.route('/user_chats')
