@@ -11,6 +11,8 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Restart the Flask application
-# You may need to modify this part based on how you run your application
-pkill -f applicationServer.py
-nohup python applicationServer.py &
+# Kill any existing Flask processes
+pkill -f gunicorn
+
+# Start the Flask application with gunicorn
+nohup gunicorn -b 0.0.0.0:5000 applicationServer:app > app.log 2>&1 &
