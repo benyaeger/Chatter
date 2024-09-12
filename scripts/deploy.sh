@@ -1,5 +1,11 @@
+# Switch to root user
+sudo su
+
 # Navigate to the Chatter directory
 cd /home/Chatter || exit
+
+# Activate venv
+source venv/bin/activate
 
 # Pull the latest code from the repository
 git pull origin main
