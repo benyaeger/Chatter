@@ -2,9 +2,13 @@ from flask import request, redirect, url_for, Flask
 import psycopg2
 from psycopg2 import errors
 from datetime import datetime
+from flask_cors import CORS
 
 # We create a Flask app object on our current file
 app = Flask(__name__)
+
+# Enable CORS for all routes
+CORS(app)
 
 # We connect to DB
 conn = psycopg2.connect(
