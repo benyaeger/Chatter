@@ -11,22 +11,22 @@ app = Flask(__name__)
 CORS(app)
 
 # Connecting to Real DB
-conn = psycopg2.connect(
-    dbname='postgres',
-    user='postgres',
-    password='l17JkhOqKwjYofAu14Wt',
-    host='chatter-db-leader.cdkae2i48cd8.eu-north-1.rds.amazonaws.com',
-    port='5432'
-)
-
-# Connecting to A DUMMY DB
 # conn = psycopg2.connect(
 #     dbname='postgres',
 #     user='postgres',
-#     password='213746837',
-#     host='localhost',
+#     password='l17JkhOqKwjYofAu14Wt',
+#     host='chatter-db-leader.cdkae2i48cd8.eu-north-1.rds.amazonaws.com',
 #     port='5432'
 # )
+
+# Connecting to A DUMMY DB
+conn = psycopg2.connect(
+    dbname='postgres',
+    user='postgres',
+    password='213746837',
+    host='localhost',
+    port='5432'
+)
 
 # We create a cursor to the connection
 cur = conn.cursor()
@@ -162,28 +162,30 @@ def remove_user_from_chat(chat_id=None, user_id=None):
 @app.route('/user_chats')
 def get_chats_of_user():
     # We get user id name from request parameters
-    owner_id = request.args.get('owner_id', '')
+    user_id = request.args.get('user_id', '')
 
-    if owner_id == '' or not owner_id:
+    if user_id == '' or not user_id:
         return jsonify(message=f'At least one of the parameters is empty or was not provided'), 400
 
-    # Querying the DB for chats that meet the parameters
-    cur.execute(f"SELECT * FROM chats WHERE chat_owner_id = {owner_id}")
+    # Querying the DB for participants that meet the parameters
+    # The logic is that we query the participants table for chats the user owns and chats he/she participates in
+    cur.execute(f"SELECT * FROM participants JOIN chats ON participants.chat_id = chats.chat_id WHERE user_id = {user_id}")
     chats_query = cur.fetchall()
 
     chats = []
     for chat in chats_query:
         chats_dict = {
             "chat_id": chat[0],
-            "chat_name": chat[1],
-            "chat_created_at": chat[2],
-            "chat_owner_id": chat[3],
-            "chat_details_updated_at": chat[4],
+            "chat_name": chat[3],
+            "chat_created_at": chat[4],
+            "chat_owner_id": chat[5],
+            "chat_details_updated_at": chat[6],
         }
         chats.append(chats_dict)
 
     # If no chats found
     if len(chats) != 0:
+        # return jsonify(chats), 200
         return jsonify(chats), 200
     return jsonify(error='No Chats Found'), 404
 

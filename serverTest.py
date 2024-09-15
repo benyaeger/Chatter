@@ -106,20 +106,20 @@ def test_remove_user_from_chat(client):
 def test_get_chats_of_user(client):
     # Test 1 - Expected Result: Good Response #
     # Define the test parameters
-    owner_id = 1
+    user_id = 1
 
     # Simulate a GET request to the '/user_chats' endpoint
-    response = client.get('/user_chats', query_string={'owner_id': owner_id})
+    response = client.get('/user_chats', query_string={'user_id': user_id})
 
     # Check status code
     assert response.status_code == 200
 
     # Test 2 - Expected Result: No Chats Found #
     # Define the test parameters
-    owner_id = 88
+    user_id = 88
 
     # Simulate a GET request to the '/user_chats' endpoint
-    response = client.get('/user_chats', query_string={'owner_id': owner_id})
+    response = client.get('/user_chats', query_string={'user_id': user_id})
 
     # Check status code
     assert response.status_code == 404
