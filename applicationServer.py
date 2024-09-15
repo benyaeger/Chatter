@@ -11,22 +11,22 @@ app = Flask(__name__)
 CORS(app)
 
 # Connecting to Real DB
-# conn = psycopg2.connect(
-#     dbname='postgres',
-#     user='postgres',
-#     password='l17JkhOqKwjYofAu14Wt',
-#     host='chatter-db-leader.cdkae2i48cd8.eu-north-1.rds.amazonaws.com',
-#     port='5432'
-# )
-
-# Connecting to A DUMMY DB
 conn = psycopg2.connect(
     dbname='postgres',
     user='postgres',
-    password='213746837',
-    host='localhost',
+    password='l17JkhOqKwjYofAu14Wt',
+    host='chatter-db-leader.cdkae2i48cd8.eu-north-1.rds.amazonaws.com',
     port='5432'
 )
+
+# Connecting to A DUMMY DB
+# conn = psycopg2.connect(
+#     dbname='postgres',
+#     user='postgres',
+#     password='213746837',
+#     host='localhost',
+#     port='5432'
+# )
 
 # We create a cursor to the connection
 cur = conn.cursor()
