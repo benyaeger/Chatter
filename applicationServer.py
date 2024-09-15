@@ -96,7 +96,7 @@ def new_chat():
         # We also need to add the owner as a chat participant
         # We use previously implemented function
         add_user_to_chat(new_chat_id, owner_id)
-        return jsonify(message='Chat Created Successfully, Owner added to chat participants'), 200
+        return jsonify(message='Chat Created Successfully, Owner added to chat participants', chat_id=new_chat_id), 200
 
     except Exception as e:
         return jsonify(error=f'An Error occurred: {e}'), 500
