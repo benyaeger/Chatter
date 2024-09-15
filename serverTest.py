@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from applicationServer import app, conn, cur
 
@@ -158,6 +160,65 @@ def test_get_chat_participants(client):
     # Test 3 - Expected Result: Bad Request - Insufficient Parameters Provided #
     # Simulate a POST request to the '/get_chat_participants' endpoint
     response = client.get('/get_chat_participants')
+
+    # Check status code
+    assert response.status_code == 400
+
+
+# This function tests the send_message function
+# @pytest.mark.skip(reason="Temporarily skipping this test")
+def test_send_message(client):
+    # Test 1 - Expected Result: Good Response #
+    # Define the test parameters
+    user_id = 1
+    chat_id = 1
+    message_content = 'The big brown fox jumped LMAO'
+
+    # Simulate a POST request to the '/send_message' endpoint
+    response = client.post('/send_message',
+                           query_string={'user_id': user_id, 'chat_id': chat_id, 'message_content': message_content})
+    # Check status code
+    assert response.status_code == 200
+
+    # Test 2 - Expected Result: Bad Request - Trying to send a message exceeding 256 chars #
+    user_id = 1
+    chat_id = 1
+    message_content = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    # Simulate a POST request to the '/send_message' endpoint
+    response = client.post('/send_message',
+                           query_string={'user_id': user_id, 'chat_id': chat_id, 'message_content': message_content})
+
+    # Check status code
+    assert response.status_code == 400
+
+    # Test 3 - Expected Result: Bad Request - Insufficient Parameters Provided #
+    # Simulate a POST request to the '/send_message' endpoint
+    response = client.post('/send_message')
+
+    # Check status code
+    assert response.status_code == 400
+
+
+# This function test the get_chat_messages function
+# @pytest.mark.skip(reason="Temporarily skipping this test")
+def test_get_chat_messages(client):
+    # Test 1 - Expected Result: Good Response #
+    # Define the test parameters
+    chat_id = 1
+    number_of_messages = 20
+
+    # Simulate a GET request to the '/get_chat_messages' endpoint
+    response = client.get('/get_chat_messages',
+                          query_string={'chat_id': chat_id, 'number_of_messages': number_of_messages})
+
+    # Check status code
+    assert response.status_code == 200
+    # Check number of messages returned
+    assert len(json.loads(response.data)) <= number_of_messages
+
+    # Test 2 - Expected Result: Bad Request - Insufficient Parameters Provided #
+    # Simulate a POST request to the '/get_chat_participants' endpoint
+    response = client.get('/get_chat_messages')
 
     # Check status code
     assert response.status_code == 400

@@ -11,22 +11,22 @@ app = Flask(__name__)
 CORS(app)
 
 # Connecting to Real DB
-conn = psycopg2.connect(
-    dbname='postgres',
-    user='postgres',
-    password='l17JkhOqKwjYofAu14Wt',
-    host='chatter-db-leader.cdkae2i48cd8.eu-north-1.rds.amazonaws.com',
-    port='5432'
-)
-
-# Connecting to A DUMMY DB
 # conn = psycopg2.connect(
 #     dbname='postgres',
 #     user='postgres',
-#     password='213746837',
-#     host='localhost',
+#     password='l17JkhOqKwjYofAu14Wt',
+#     host='chatter-db-leader.cdkae2i48cd8.eu-north-1.rds.amazonaws.com',
 #     port='5432'
 # )
+
+# Connecting to A DUMMY DB
+conn = psycopg2.connect(
+    dbname='postgres',
+    user='postgres',
+    password='213746837',
+    host='localhost',
+    port='5432'
+)
 
 # We create a cursor to the connection
 cur = conn.cursor()
@@ -169,7 +169,8 @@ def get_chats_of_user():
 
     # Querying the DB for participants that meet the parameters
     # The logic is that we query the participants table for chats the user owns and chats he/she participates in
-    cur.execute(f"SELECT * FROM participants JOIN chats ON participants.chat_id = chats.chat_id WHERE user_id = {user_id}")
+    cur.execute(
+        f"SELECT * FROM participants JOIN chats ON participants.chat_id = chats.chat_id WHERE user_id = {user_id}")
     chats_query = cur.fetchall()
 
     chats = []
@@ -218,6 +219,80 @@ def get_chat_participants():
     if len(chat_participants) != 0:
         return jsonify(chat_participants), 200
     return jsonify(error='No Chat Participants Found'), 404
+
+
+# Tested
+@app.route('/send_message', methods=["POST"])
+def send_message():
+    # Get params from request
+    user_id = request.args.get('user_id', '')
+    chat_id = request.args.get('chat_id', '')
+    message_content = request.args.get('message_content', '')
+
+    # If any parameter invalid or blank, return 400
+    if chat_id == '' or user_id == '' or message_content == '' or not chat_id or not user_id or not message_content:
+        return jsonify(message=f'At least one of the parameters is empty or was not provided'), 400
+
+    # If message is longer then 256 chars, return 400
+    if len(message_content) >= 256:
+        return jsonify(message=f'Message exceeded 256 characters'), 400
+
+    # Insert Query Init
+    new_message_query = """
+    INSERT INTO messages (sender_id ,message_sent_at ,chat_id, message_content) VALUES (%s, NOW(), %s, %s);
+    """
+
+    try:
+        # Execute Insert Query
+        cur.execute(new_message_query, (user_id, chat_id, message_content))
+        # Commit the changes to the database
+        conn.commit()
+        return jsonify(message=f'Message uploaded Successfully to Chat ID {chat_id}'), 200
+
+    except Exception as e:
+        # Handle other potential exceptions
+        conn.rollback()
+        return jsonify(message=f'An Error occurred: {str(e)}'), 500
+
+
+# Tested
+@app.route('/get_chat_messages')
+def get_chat_messages():
+    # Get chat id and number of messages to read
+    chat_id = request.args.get('chat_id', '')
+    number_of_messages = request.args.get('number_of_messages', '')
+
+    if chat_id == '' or not chat_id or number_of_messages == '' or not number_of_messages:
+        return jsonify(message=f'At least one of the parameters is empty or was not provided'), 400
+
+    cur.execute(
+        f'''
+        SELECT * 
+        FROM messages 
+        JOIN users ON messages.sender_id = users.user_id 
+        WHERE chat_id = {chat_id} 
+        ORDER BY messages.message_sent_at DESC 
+        LIMIT {number_of_messages}
+        '''
+    )
+
+    chat_messages_query = cur.fetchall()
+
+    chat_messages = []
+    for chat_message in chat_messages_query:
+        chat_message_dict = {
+            'message_id': chat_message[0],
+            'sender_id': chat_message[1],
+            'first_name': chat_message[6],
+            'last_name': chat_message[7],
+            'message_sent_at': chat_message[2],
+            'message_content': chat_message[4]
+        }
+        chat_messages.append(chat_message_dict)
+
+    if len(chat_messages) != 0:
+        return jsonify(chat_messages), 200
+    return jsonify(error='No Chat Messages Found'), 404
 
 
 if __name__ == '__main__':
