@@ -3,30 +3,35 @@ import psycopg2
 from psycopg2 import errors
 from datetime import datetime
 from flask_cors import CORS
+from flask_socketio import SocketIO, send, emit, join_room, leave_room
 
 # We create a Flask app object on our current file
 app = Flask(__name__)
+
+# We config the WebSocket app
+app.config['SECRET_KEY'] = 'secret!'
+socketio = SocketIO(app)
 
 # Enable CORS for all routes
 CORS(app)
 
 # Connecting to Real DB
-conn = psycopg2.connect(
-    dbname='postgres',
-    user='postgres',
-    password='l17JkhOqKwjYofAu14Wt',
-    host='chatter-db-leader.cdkae2i48cd8.eu-north-1.rds.amazonaws.com',
-    port='5432'
-)
-
-# Connecting to A DUMMY DB
 # conn = psycopg2.connect(
 #     dbname='postgres',
 #     user='postgres',
-#     password='213746837',
-#     host='localhost',
+#     password='l17JkhOqKwjYofAu14Wt',
+#     host='chatter-db-leader.cdkae2i48cd8.eu-north-1.rds.amazonaws.com',
 #     port='5432'
 # )
+
+# Connecting to A DUMMY DB
+conn = psycopg2.connect(
+    dbname='postgres',
+    user='postgres',
+    password='213746837',
+    host='localhost',
+    port='5432'
+)
 
 # We create a cursor to the connection
 cur = conn.cursor()
@@ -255,6 +260,28 @@ def send_message():
         return jsonify(message=f'An Error occurred: {str(e)}'), 500
 
 
+@socketio.on('message')
+def handle_message(data):
+    print(f'received message: {data}')
+    send('server got your message!')
+
+
+@socketio.on('join')
+def on_join(data):
+    username = data['username']
+    chat_id = data['chat_id']
+    join_room(chat_id)
+    send(username + ' has entered the room.', to=chat_id)
+
+
+@socketio.on('leave')
+def on_leave(data):
+    username = data['username']
+    chat_id = data['chat_id']
+    leave_room(chat_id)
+    send(username + ' has left the room.', to=chat_id)
+
+
 # Tested
 @app.route('/get_chat_messages')
 def get_chat_messages():
@@ -297,4 +324,4 @@ def get_chat_messages():
 
 if __name__ == '__main__':
     # Run the app
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app)
