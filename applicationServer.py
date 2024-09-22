@@ -1,32 +1,37 @@
-from flask import request, redirect, url_for, Flask, jsonify
+from flask import redirect, url_for, Flask, jsonify, request
 import psycopg2
 from psycopg2 import errors
 from datetime import datetime
 from flask_cors import CORS
+from flask_socketio import SocketIO, send, emit, join_room, leave_room
 
 # We create a Flask app object on our current file
 app = Flask(__name__)
 
 # Enable CORS for all routes
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
+
+# We config the WebSocket app
+app.config['SECRET_KEY'] = 'secret!'
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Connecting to Real DB
-conn = psycopg2.connect(
-    dbname='postgres',
-    user='postgres',
-    password='l17JkhOqKwjYofAu14Wt',
-    host='chatter-db-leader.cdkae2i48cd8.eu-north-1.rds.amazonaws.com',
-    port='5432'
-)
-
-# Connecting to A DUMMY DB
 # conn = psycopg2.connect(
 #     dbname='postgres',
 #     user='postgres',
-#     password='213746837',
-#     host='localhost',
+#     password='l17JkhOqKwjYofAu14Wt',
+#     host='chatter-db-leader.cdkae2i48cd8.eu-north-1.rds.amazonaws.com',
 #     port='5432'
 # )
+
+# Connecting to A DUMMY DB
+conn = psycopg2.connect(
+    dbname='postgres',
+    user='postgres',
+    password='213746837',
+    host='localhost',
+    port='5432'
+)
 
 # We create a cursor to the connection
 cur = conn.cursor()
@@ -62,6 +67,38 @@ def get_user():
     if len(user_list) == 0:
         return jsonify(error='User Not Found'), 404
     return jsonify(user_list)
+
+# This function gets the user details by username
+@app.route('/user_by_username')
+def get_user_by_username():
+    # We get the params from args
+    user_name = request.args.get('user_name')
+
+    # Querying the DB for users that meet the parameters
+    cur.execute(f"SELECT * FROM users WHERE username = '{user_name}'")
+
+    # If username arg is missing
+    if user_name == '' or not user_name:
+        return jsonify(message=f'At least one of the parameters is empty or was not provided'), 400
+
+    # Fetch matching users
+    user = cur.fetchone()
+    # If user is None then no users were found
+    if user is None:
+        return jsonify(message='User Does Not Exist'), 404
+
+    # Create a dictionary from the returned tuple
+    user_data = {
+        "user_id": user[0],
+        "first_name": user[1],
+        "last_name": user[2],
+        "user_created_at": user[3],
+        "user_details_updated_at": user[4],
+        "username": user[5]
+    }
+
+    # We return the user data
+    return jsonify(user_data), 200
 
 
 # Tested
@@ -161,16 +198,29 @@ def remove_user_from_chat(chat_id=None, user_id=None):
 # Tested
 @app.route('/user_chats')
 def get_chats_of_user():
-    # We get user id name from request parameters
-    user_id = request.args.get('user_id', '')
+    # We get username from request parameters
+    user_name = request.args.get('user_name', '')
 
-    if user_id == '' or not user_id:
+    if user_name == '' or not user_name:
         return jsonify(message=f'At least one of the parameters is empty or was not provided'), 400
+
+    # Get user_id from users table based on user_name
+    cur.execute("SELECT user_id FROM users WHERE username = %s", (user_name,))
+    user_search_query = cur.fetchone()
+
+    # If no user matches the username
+    if user_search_query is None:
+        return jsonify(message='User not found'), 404
+
+    # Get the database user_id of the user
+    user_id = user_search_query[0]
 
     # Querying the DB for participants that meet the parameters
     # The logic is that we query the participants table for chats the user owns and chats he/she participates in
     cur.execute(
-        f"SELECT * FROM participants JOIN chats ON participants.chat_id = chats.chat_id WHERE user_id = {user_id}")
+        "SELECT * FROM participants JOIN chats ON participants.chat_id = chats.chat_id WHERE user_id = %s",
+        (user_id,)
+    )
     chats_query = cur.fetchall()
 
     chats = []
@@ -255,6 +305,87 @@ def send_message():
         return jsonify(message=f'An Error occurred: {str(e)}'), 500
 
 
+@socketio.on('connect')
+def handle_connection():
+    print('new connection')
+
+
+# Websocket handling of new message
+@socketio.on('message')
+def handle_message(message):
+
+    # Get params from request
+    user_id = message["user_id"]
+    chat_id = message["chat_id"]
+    message_content = message["message_content"]
+
+    # If any parameter invalid or blank, return 400
+    if chat_id == '' or user_id == '' or message_content == '' or not chat_id or not user_id or not message_content:
+        # We send an error message to sender
+        emit('error_sending_message', 'At least one of the parameters is empty or was not provided', room=request.sid)
+        return  # Prevent further execution
+
+    # If message is longer then 256 chars, return 400
+    if len(message_content) >= 256:
+        # We send an error message to sender
+        emit('error_sending_message', 'Message exceeded 256 characters', room=request.sid)
+        return  # Prevent further execution
+
+    # Insert Message Query
+    new_message_query = """
+    INSERT INTO messages (sender_id, message_sent_at, chat_id, message_content) 
+    VALUES (%s, NOW(), %s, %s) RETURNING *;
+    """
+
+    try:
+        # Execute Insert Query
+        cur.execute(new_message_query, (user_id, chat_id, message_content))
+
+        # Fetch the entire row back
+        new_message_data = cur.fetchone()
+
+        # Commit the changes to the database
+        conn.commit()
+
+        # Convert datetime to ISO format for JSON serialization
+        message_sent_at = new_message_data[2].isoformat() if isinstance(new_message_data[2], datetime) else \
+            new_message_data[2]
+
+        # Create a dictionary from the returned tuple
+        new_message = {
+            "message_id": new_message_data[0],  # Assuming this is the first column
+            "sender_id": new_message_data[1],
+            "message_sent_at": message_sent_at,
+            "chat_id": new_message_data[3],
+            "message_content": new_message_data[4]
+        }
+
+        # We send the new message to all room listeners
+        emit('new_message', new_message, room=chat_id)
+
+    except Exception as e:
+        # Handle other potential exceptions
+        conn.rollback()
+        # We send an error message to sender
+        emit('error_sending_message', f'An Error occurred: {str(e)}', room=request.sid)
+
+
+@socketio.on('join')
+def on_join(data):
+    username = data['username']
+    chat_id = data['chat_id']
+    join_room(chat_id)
+    send(username + ' has entered the room.', to=chat_id)
+
+
+@socketio.on('leave')
+def on_leave(data):
+    username = data['username']
+    chat_id = data['chat_id']
+    leave_room(chat_id)
+    send(username + ' has left the room.', to=chat_id)
+
+
 # Tested
 @app.route('/get_chat_messages')
 def get_chat_messages():
@@ -297,4 +428,4 @@ def get_chat_messages():
 
 if __name__ == '__main__':
     # Run the app
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, allow_unsafe_werkzeug=True)

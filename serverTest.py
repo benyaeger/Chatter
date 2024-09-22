@@ -10,7 +10,8 @@ def prepare_testing_sandbox():
     # Clean up the tables before starting the tests
     cur.execute("TRUNCATE TABLE chats RESTART IDENTITY CASCADE;")
     cur.execute("TRUNCATE TABLE participants RESTART IDENTITY CASCADE;")
-    conn.commit()
+    cur.execute("INSERT INTO chats (chat_name, chat_created_at, chat_owner_id) VALUES ('The Boys', NOW(), 28);")
+    cur.execute("INSERT INTO participants (chat_id, user_id) VALUES (1, 28);")
 
     # Yield control back to the tests
     yield
@@ -23,6 +24,45 @@ def client():
     app.config['TESTING'] = True
     with app.test_client() as client:
         yield client
+
+
+# This function tests the get_user_by_username function
+# @pytest.mark.skip(reason="Temporarily skipping this test")
+def test_get_user_by_username(client):
+    # Test 1 - Expected Result: Good Response #
+    # Define the test parameter
+    user_name = 'benben1001'
+
+    # Simulate a GET request to the '/user_by_username' endpoint
+    response = client.get('/user_by_username', query_string={'user_name': user_name})
+    print(response)
+
+    # Check status code
+    assert response.status_code == 200
+
+    # Check the response data
+    data = response.get_json()
+    assert 'user_id' in data
+    assert 'first_name' in data
+    assert 'last_name' in data
+    assert 'username' in data
+    assert data['username'] == user_name  # Ensure the username matches
+
+    # Test 2 - Expected Result: Bad Request - Insufficient Parameters Provided #
+    # Simulate a GET request to the '/user_by_username' endpoint without username
+    response = client.get('/user_by_username')
+
+    # Check status code
+    assert response.status_code == 400
+    assert response.get_json()['message'] == 'At least one of the parameters is empty or was not provided'
+
+    # Test 3 - Expected Result: User Does Not Exist #
+    # Simulate a GET request to the '/user_by_username' endpoint with a non-existent username
+    response = client.get('/user_by_username', query_string={'user_name': 'nonexistentuser'})
+
+    # Check status code
+    assert response.status_code == 404
+    assert response.get_json()['message'] == 'User Does Not Exist'
 
 
 # This function tests the new_chat function of the server
@@ -108,20 +148,20 @@ def test_remove_user_from_chat(client):
 def test_get_chats_of_user(client):
     # Test 1 - Expected Result: Good Response #
     # Define the test parameters
-    user_id = 1
+    user_name = 'benben1001'
 
     # Simulate a GET request to the '/user_chats' endpoint
-    response = client.get('/user_chats', query_string={'user_id': user_id})
+    response = client.get('/user_chats', query_string={'user_name': user_name})
 
     # Check status code
     assert response.status_code == 200
 
     # Test 2 - Expected Result: No Chats Found #
     # Define the test parameters
-    user_id = 88
+    user_name = 'whothehellisthis'
 
     # Simulate a GET request to the '/user_chats' endpoint
-    response = client.get('/user_chats', query_string={'user_id': user_id})
+    response = client.get('/user_chats', query_string={'user_name': user_name})
 
     # Check status code
     assert response.status_code == 404
