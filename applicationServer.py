@@ -323,5 +323,5 @@ def get_chat_messages():
 
 
 if __name__ == '__main__':
-    # Run the app
-    socketio.run(app)
+    # Run the app with Flask-SocketIO
+    socketio.run(app, allow_unsafe_werkzeug=True, debug=True)
