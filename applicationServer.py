@@ -65,7 +65,7 @@ def get_user():
 
     # If no users found
     if len(user_list) == 0:
-        return jsonify(error='User Not Found'), 404
+        return jsonify(message='User Not Found'), 404
     return jsonify(user_list)
 
 # This function gets the user details by username
@@ -222,7 +222,6 @@ def get_chats_of_user():
         (user_id,)
     )
     chats_query = cur.fetchall()
-
     chats = []
     for chat in chats_query:
         chats_dict = {
@@ -362,7 +361,6 @@ def handle_message(message):
 
         # We send the new message to all room listeners
         emit('new_message', new_message, room=chat_id)
-
     except Exception as e:
         # Handle other potential exceptions
         conn.rollback()
