@@ -351,6 +351,7 @@ def handle_message(message):
             new_message_data[2]
 
         # Create a dictionary from the returned tuple
+        # TODO Message data also contains first_name and last_name, include them here
         new_message = {
             "message_id": new_message_data[0],  # Assuming this is the first column
             "sender_id": new_message_data[1],
@@ -358,6 +359,15 @@ def handle_message(message):
             "chat_id": new_message_data[3],
             "message_content": new_message_data[4]
         }
+
+        # chat_message_dict = {
+        #     'message_id': chat_message[0],
+        #     'sender_id': chat_message[1],
+        #     'first_name': chat_message[6],
+        #     'last_name': chat_message[7],
+        #     'message_sent_at': chat_message[2],
+        #     'message_content': chat_message[4]
+        # }
 
         # We send the new message to all room listeners
         emit('new_message', new_message, room=chat_id)
