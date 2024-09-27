@@ -3,7 +3,7 @@ import psycopg2
 from psycopg2 import errors
 from datetime import datetime
 from flask_cors import CORS
-from flask_socketio import SocketIO, send, emit, join_room, leave_room
+from flask_socketio import SocketIO, send, emit, join_room, leave_room, rooms
 
 # We create a Flask app object on our current file
 app = Flask(__name__)
@@ -67,6 +67,7 @@ def get_user():
     if len(user_list) == 0:
         return jsonify(message='User Not Found'), 404
     return jsonify(user_list)
+
 
 # This function gets the user details by username
 @app.route('/user_by_username')
@@ -306,13 +307,12 @@ def send_message():
 
 @socketio.on('connect')
 def handle_connection():
-    print('new connection')
+    print(f'new connection')
 
 
 # Websocket handling of new message
 @socketio.on('message')
 def handle_message(message):
-
     # Get params from request
     user_id = message["user_id"]
     chat_id = message["chat_id"]
@@ -327,7 +327,7 @@ def handle_message(message):
     # If message is longer then 256 chars, return 400
     if len(message_content) >= 256:
         # We send an error message to sender
-        emit('error_sending_message', 'Message exceeded 256 characters', room=request.sid)
+        emit('error_sending_message', 'Message exceeded 256 characters', to=request.sid)
         return  # Prevent further execution
 
     # Insert Message Query
@@ -351,38 +351,33 @@ def handle_message(message):
             new_message_data[2]
 
         # Create a dictionary from the returned tuple
-        # TODO Message data also contains first_name and last_name, include them here
         new_message = {
+            "first_name": message["first_name"],
+            "last_name": message["last_name"],
             "message_id": new_message_data[0],  # Assuming this is the first column
-            "sender_id": new_message_data[1],
+            "sender_id": message["user_id"],
             "message_sent_at": message_sent_at,
-            "chat_id": new_message_data[3],
-            "message_content": new_message_data[4]
+            "chat_id": message["chat_id"],
+            "message_content": message["message_content"]
         }
 
-        # chat_message_dict = {
-        #     'message_id': chat_message[0],
-        #     'sender_id': chat_message[1],
-        #     'first_name': chat_message[6],
-        #     'last_name': chat_message[7],
-        #     'message_sent_at': chat_message[2],
-        #     'message_content': chat_message[4]
-        # }
-
         # We send the new message to all room listeners
-        emit('new_message', new_message, room=chat_id)
+        emit('new_message', new_message, to=chat_id)
+
     except Exception as e:
         # Handle other potential exceptions
         conn.rollback()
         # We send an error message to sender
-        emit('error_sending_message', f'An Error occurred: {str(e)}', room=request.sid)
+        emit('error_sending_message', f'An Error occurred: {str(e)}', to=request.sid)
 
 
 @socketio.on('join')
 def on_join(data):
     username = data['username']
     chat_id = data['chat_id']
+    print(f'{username} has joined room {chat_id}')
     join_room(chat_id)
+    display_room_status(chat_id)
     send(username + ' has entered the room.', to=chat_id)
 
 
@@ -392,6 +387,14 @@ def on_leave(data):
     chat_id = data['chat_id']
     leave_room(chat_id)
     send(username + ' has left the room.', to=chat_id)
+
+
+# Utility function to display room status
+def display_room_status(chat_id):
+    room_clients = socketio.server.manager.rooms.get('/')[chat_id]
+    print(f'Room {chat_id} has {len(room_clients)} client(s) connected:')
+    for client_id in room_clients:
+        print(f' - {client_id}')
 
 
 # Tested
