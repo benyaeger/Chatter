@@ -17,7 +17,8 @@ git pull origin main
 pip install -r requirements.txt
 
 # Login to Docker without hardcoding credentials
-echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+# THESE ARE ENVIRONMENT VARIABLES SET UP MANUALLY ON THE EC2 INSTANCE UNDER ~/.bashrc
+echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin
 
 # Kill any existing Flask processes
 pkill -f gunicorn
