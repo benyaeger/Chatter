@@ -22,9 +22,13 @@ jobs:
       run: |
         docker build -t "${{ secrets.DOCKER_HUB_USERNAME }}/chatter-flask-server:v1" .
 
+    - name: DEBUG STEP - Print Docker Hub Username
+      run: |
+        echo "Docker Hub Username: ${{ secrets.DOCKER_HUB_USERNAME }}"
+
     - name: Log in to Docker Hub
       run: |
-        echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+        docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" -p "${{ secrets.DOCKER_HUB_PASSWORD }}"
 
     - name: Push Image To DockerHub
       run: |
