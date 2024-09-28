@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Switch to root user
 sudo su
 
@@ -17,11 +19,19 @@ git pull origin main
 pip install -r requirements.txt
 
 # Login to Docker without hardcoding credentials
-# THESE ARE ENVIRONMENT VARIABLES SET UP MANUALLY ON THE EC2 INSTANCE UNDER ~/.bashrc
 echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin
 
-# Kill any existing Flask processes
-pkill -f gunicorn
+# Pull the latest image
+docker pull chatter-flask-server:v1
 
-# Start the Flask application with gunicorn
-nohup gunicorn -b 0.0.0.0:5000 applicationServer:app > app.log 2>&1 &
+# Stop any existing container running the image
+docker stop chatter-flask-server || true
+
+# Remove the existing container if it exists
+docker rm chatter-flask-server || true
+
+# Run the new container
+docker run -d \
+    --name chatter-flask-server \
+    -p 5000:5000 \
+    chatter-flask-server:v1
