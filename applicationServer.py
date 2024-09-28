@@ -16,22 +16,22 @@ app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Connecting to Real DB
-conn = psycopg2.connect(
-    dbname='postgres',
-    user='postgres',
-    password='l17JkhOqKwjYofAu14Wt',
-    host='chatter-db-leader.cdkae2i48cd8.eu-north-1.rds.amazonaws.com',
-    port='5432'
-)
-
-# Connecting to A DUMMY DB
 # conn = psycopg2.connect(
 #     dbname='postgres',
 #     user='postgres',
-#     password='213746837',
-#     host='localhost',
+#     password='l17JkhOqKwjYofAu14Wt',
+#     host='chatter-db-leader.cdkae2i48cd8.eu-north-1.rds.amazonaws.com',
 #     port='5432'
 # )
+
+# Connecting to A DUMMY DB
+conn = psycopg2.connect(
+    dbname='postgres',
+    user='postgres',
+    password='213746837',
+    host='host.docker.internal',
+    port='5432'
+)
 
 # We create a cursor to the connection
 cur = conn.cursor()
@@ -439,4 +439,4 @@ def get_chat_messages():
 
 if __name__ == '__main__':
     # Run the app
-    socketio.run(app, allow_unsafe_werkzeug=True)
+    socketio.run(app, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)

@@ -18,7 +18,19 @@ jobs:
       with:
         ssh-private-key: ${{ secrets.CHATTER_EC2_SSH_KEY }}
 
-    - name: Deploy to EC2
+    - name: Build Docker Image
+      run: |
+        docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/chatter-flask-server:v1 .
+
+    - name: Log in to Docker Hub
+      run: |
+        echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+
+    - name: Push Image To DockerHub
+      run: |
+        docker push ${{ secrets.DOCKER_HUB_USERNAME }}/chatter-flask-server:v1
+
+    - name: Run Deployment Bash Script on EC2 Instance
       run: |
         ssh -o StrictHostKeyChecking=no ec2-user@16.171.25.156 'bash -s' < scripts/deploy.sh
 

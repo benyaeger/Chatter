@@ -1,24 +1,25 @@
+#!/bin/bash
+
 # Switch to root user
 sudo su
 
 # Navigate to the Chatter directory
 cd /home/Chatter || exit
 
-# Activate venv
+# Activate virtual environment
 source venv/bin/activate
 
 # Pull the latest code from the repository
 git pull origin main
 
-# Activate the virtual environment
-source venv/bin/activate
-
 # Install dependencies
 pip install -r requirements.txt
 
-# Restart the Flask application
 # Kill any existing Flask processes
 pkill -f gunicorn
 
-# Start the Flask application with gunicorn
-nohup gunicorn -b 0.0.0.0:5000 applicationServer:app > app.log 2>&1 &
+# Pull the latest Docker image
+docker pull benyaegerwork/chatter-flask-server:v1
+
+# Run the new Docker container
+docker run -d -p 5000:5000 benyaegerwork/chatter-flask-server:v1
