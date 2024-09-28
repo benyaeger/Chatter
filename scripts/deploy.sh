@@ -22,7 +22,7 @@ pip install -r requirements.txt
 echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin
 
 # Pull the latest image
-docker pull chatter-flask-server:v1
+docker pull benyaegerwork/chatter-flask-server:v1
 
 # Stop any existing container running the image
 docker stop chatter-flask-server || true
