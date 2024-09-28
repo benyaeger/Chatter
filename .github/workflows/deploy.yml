@@ -20,7 +20,7 @@ jobs:
 
     - name: Build Docker Image
       run: |
-        docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/chatter-flask-server:v1 .
+        docker build -t "${{ secrets.DOCKER_HUB_USERNAME }"}/chatter-flask-server:v1 .
 
     - name: Log in to Docker Hub
       run: |
@@ -28,7 +28,7 @@ jobs:
 
     - name: Push Image To DockerHub
       run: |
-        docker push ${{ secrets.DOCKER_HUB_USERNAME }}/chatter-flask-server:v1
+        docker push "${{ secrets.DOCKER_HUB_USERNAME }}"/chatter-flask-server:v1
 
     - name: Run Deployment Bash Script on EC2 Instance
       run: |
