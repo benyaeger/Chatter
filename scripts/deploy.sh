@@ -34,4 +34,4 @@ docker rm chatter-flask-server || true
 docker run -d \
     --name chatter-flask-server \
     -p 5000:5000 \
-    chatter-flask-server:v1
+    benyaegerwork/chatter-flask-server:v1
