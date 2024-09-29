@@ -1,9 +1,11 @@
-from flask import redirect, url_for, Flask, jsonify, request
+from flask import Flask, jsonify, request
+import requests
+import jwt
 import psycopg2
 from psycopg2 import errors
 from datetime import datetime
 from flask_cors import CORS
-from flask_socketio import SocketIO, send, emit, join_room, leave_room, rooms
+from flask_socketio import SocketIO, send, emit, join_room, leave_room
 
 # We create a Flask app object on our current file
 app = Flask(__name__)
@@ -15,23 +17,60 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Connecting to Real DB
+# Connecting to A DUMMY DB
 conn = psycopg2.connect(
     dbname='postgres',
     user='postgres',
-    password='l17JkhOqKwjYofAu14Wt',
-    host='chatter-db-leader.cdkae2i48cd8.eu-north-1.rds.amazonaws.com',
+    password='213746837',
+    host='localhost',
     port='5432'
 )
 
-# Connecting to A DUMMY DB
+# Connecting to Real DB
 # conn = psycopg2.connect(
 #     dbname='postgres',
 #     user='postgres',
-#     password='213746837',
-#     host='host.docker.internal',
+#     password='l17JkhOqKwjYofAu14Wt',
+#     host='chatter-db-leader.cdkae2i48cd8.eu-north-1.rds.amazonaws.com',
 #     port='5432'
 # )
+
+# JWT Constants
+COGNITO_REGION = 'eu-north-1'
+USER_POOL_ID = 'eu-north-1_Q1ym0Tw6Y'
+COGNITO_ISSUER = f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{USER_POOL_ID}"
+
+
+# Get Cognito public keys
+def get_cognito_public_keys():
+    response = requests.get(f"{COGNITO_ISSUER}/.well-known/jwks.json")
+    return response.json()
+
+
+# Verifying JWT using Cognito's public key
+def verify_jwt(token):
+    try:
+        keys = get_cognito_public_keys()
+        headers = jwt.get_unverified_header(token)
+        key = next(k for k in keys['keys'] if k['kid'] == headers['kid'])
+        public_key = jwt.algorithms.RSAAlgorithm.from_jwk(key)
+
+        # Decode token without 'aud' validation for access tokens
+        payload = jwt.decode(token, public_key, algorithms=['RS256'], issuer=COGNITO_ISSUER)
+
+        # Check if the token has the 'aud' claim
+        if 'aud' in payload:
+            # This is likely an ID token, verify the audience
+            jwt.decode(token, public_key, algorithms=['RS256'], audience="your-app-client-id", issuer=COGNITO_ISSUER)
+        else:
+            # Access tokens won't have 'aud', so only check the issuer
+            jwt.decode(token, public_key, algorithms=['RS256'], issuer=COGNITO_ISSUER)
+
+        return payload
+    except Exception as e:
+        print(f"JWT verification error: {e}")
+        return None
+
 
 # We create a cursor to the connection
 cur = conn.cursor()
@@ -40,11 +79,28 @@ cur = conn.cursor()
 # We use the route() decorator to tell Flask what URL should trigger our function.
 @app.route('/')
 def index():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({"error": "Authorization header is missing"}), 401
+
+    token = auth_header.split(" ")[1]  # Extract token from 'Bearer <token>'
+    payload = verify_jwt(token)
+    if not payload:
+        return jsonify({"error": "Invalid or expired token"}), 401
     return jsonify(message='Hello World!')
 
 
 @app.route('/user')
 def get_user():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({"error": "Authorization header is missing"}), 401
+
+    token = auth_header.split(" ")[1]  # Extract token from 'Bearer <token>'
+    payload = verify_jwt(token)
+    if not payload:
+        return jsonify({"error": "Invalid or expired token"}), 401
+
     # We get user first and last name from request parameters
     first_name = request.args.get('first_name', '')
     last_name = request.args.get('last_name', '')
@@ -72,6 +128,15 @@ def get_user():
 # This function gets the user details by username
 @app.route('/user_by_username')
 def get_user_by_username():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({"error": "Authorization header is missing"}), 401
+
+    token = auth_header.split(" ")[1]  # Extract token from 'Bearer <token>'
+    payload = verify_jwt(token)
+    if not payload:
+        return jsonify({"error": "Invalid or expired token"}), 401
+
     # We get the params from args
     user_name = request.args.get('user_name')
 
@@ -105,6 +170,15 @@ def get_user_by_username():
 # Tested
 @app.route('/newchat', methods=["POST"])
 def new_chat():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({"error": "Authorization header is missing"}), 401
+
+    token = auth_header.split(" ")[1]  # Extract token from 'Bearer <token>'
+    payload = verify_jwt(token)
+    if not payload:
+        return jsonify({"error": "Invalid or expired token"}), 401
+
     # We get new chat parameters from request parameters
     owner_id = request.args.get('owner_id', '')
     chat_name = request.args.get('chat_name', '')
@@ -143,6 +217,15 @@ def new_chat():
 # Tested
 @app.route('/add_user_to_chat', methods=["POST"])
 def add_user_to_chat(chat_id=None, added_user_id=None):
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({"error": "Authorization header is missing"}), 401
+
+    token = auth_header.split(" ")[1]  # Extract token from 'Bearer <token>'
+    payload = verify_jwt(token)
+    if not payload:
+        return jsonify({"error": "Invalid or expired token"}), 401
+
     if chat_id is None and added_user_id is None:
         # Get params from request
         chat_id = request.args.get('chat_id', '')
@@ -174,6 +257,15 @@ def add_user_to_chat(chat_id=None, added_user_id=None):
 # Tested
 @app.route('/remove_user_from_chat', methods=["DELETE"])
 def remove_user_from_chat(chat_id=None, user_id=None):
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({"error": "Authorization header is missing"}), 401
+
+    token = auth_header.split(" ")[1]  # Extract token from 'Bearer <token>'
+    payload = verify_jwt(token)
+    if not payload:
+        return jsonify({"error": "Invalid or expired token"}), 401
+
     if chat_id is None and user_id is None:
         chat_id = request.args.get("chat_id", "")
         user_id = request.args.get("user_id", "")
@@ -199,6 +291,15 @@ def remove_user_from_chat(chat_id=None, user_id=None):
 # Tested
 @app.route('/user_chats')
 def get_chats_of_user():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({"error": "Authorization header is missing"}), 401
+
+    token = auth_header.split(" ")[1]  # Extract token from 'Bearer <token>'
+    payload = verify_jwt(token)
+    if not payload:
+        return jsonify({"error": "Invalid or expired token"}), 401
+
     # We get username from request parameters
     user_name = request.args.get('user_name', '')
 
@@ -244,6 +345,15 @@ def get_chats_of_user():
 # Tested
 @app.route('/get_chat_participants')
 def get_chat_participants():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({"error": "Authorization header is missing"}), 401
+
+    token = auth_header.split(" ")[1]  # Extract token from 'Bearer <token>'
+    payload = verify_jwt(token)
+    if not payload:
+        return jsonify({"error": "Invalid or expired token"}), 401
+
     # Get chat id
     chat_id = request.args.get('chat_id', '')
     if chat_id == '' or not chat_id:
@@ -269,40 +379,6 @@ def get_chat_participants():
     if len(chat_participants) != 0:
         return jsonify(chat_participants), 200
     return jsonify(error='No Chat Participants Found'), 404
-
-
-# Tested
-@app.route('/send_message', methods=["POST"])
-def send_message():
-    # Get params from request
-    user_id = request.args.get('user_id', '')
-    chat_id = request.args.get('chat_id', '')
-    message_content = request.args.get('message_content', '')
-
-    # If any parameter invalid or blank, return 400
-    if chat_id == '' or user_id == '' or message_content == '' or not chat_id or not user_id or not message_content:
-        return jsonify(message=f'At least one of the parameters is empty or was not provided'), 400
-
-    # If message is longer then 256 chars, return 400
-    if len(message_content) >= 256:
-        return jsonify(message=f'Message exceeded 256 characters'), 400
-
-    # Insert Query Init
-    new_message_query = """
-    INSERT INTO messages (sender_id ,message_sent_at ,chat_id, message_content) VALUES (%s, NOW(), %s, %s);
-    """
-
-    try:
-        # Execute Insert Query
-        cur.execute(new_message_query, (user_id, chat_id, message_content))
-        # Commit the changes to the database
-        conn.commit()
-        return jsonify(message=f'Message uploaded Successfully to Chat ID {chat_id}'), 200
-
-    except Exception as e:
-        # Handle other potential exceptions
-        conn.rollback()
-        return jsonify(message=f'An Error occurred: {str(e)}'), 500
 
 
 @socketio.on('connect')
