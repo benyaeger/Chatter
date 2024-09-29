@@ -18,22 +18,22 @@ app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Connecting to A DUMMY DB
-conn = psycopg2.connect(
-    dbname='postgres',
-    user='postgres',
-    password='213746837',
-    host='localhost',
-    port='5432'
-)
-
-# Connecting to Real DB
 # conn = psycopg2.connect(
 #     dbname='postgres',
 #     user='postgres',
-#     password='l17JkhOqKwjYofAu14Wt',
-#     host='chatter-db-leader.cdkae2i48cd8.eu-north-1.rds.amazonaws.com',
+#     password='213746837',
+#     host='localhost',
 #     port='5432'
 # )
+
+# Connecting to Real DB
+conn = psycopg2.connect(
+    dbname='postgres',
+    user='postgres',
+    password='l17JkhOqKwjYofAu14Wt',
+    host='chatter-db-leader.cdkae2i48cd8.eu-north-1.rds.amazonaws.com',
+    port='5432'
+)
 
 # JWT Constants
 COGNITO_REGION = 'eu-north-1'
